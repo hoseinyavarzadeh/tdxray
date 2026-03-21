@@ -9,6 +9,7 @@
   --bg:         #080d14;
   --bg-card:    #0d1520;
   --bg-card2:   #111c2a;
+  --bg-terminal:#050b12;
   --border:     rgba(0,210,210,0.12);
   --border-mid: rgba(0,210,210,0.22);
   --teal:       #00d2d2;
@@ -21,11 +22,30 @@
   --muted2:     #4f6478;
   --red:        #ff4f6a;
   --yellow:     #f5c542;
-  --font-head:  'Syne', sans-serif;
+  --nav-bg:     rgba(8,13,20,0.85);
+  --font-head:  'DM Sans', sans-serif;
   --font-body:  'DM Sans', sans-serif;
   --font-mono:  'DM Mono', monospace;
   --radius:     12px;
   --radius-lg:  20px;
+}
+
+[data-theme="light"] {
+  --bg:         #f0f4f9;
+  --bg-card:    #ffffff;
+  --bg-card2:   #e4eaf2;
+  --bg-terminal:#1a2233;
+  --border:     rgba(0,160,160,0.15);
+  --border-mid: rgba(0,160,160,0.32);
+  --teal:       #008a8a;
+  --teal-dim:   #006e6e;
+  --teal-glow:  rgba(0,160,160,0.18);
+  --teal-faint: rgba(0,160,160,0.07);
+  --teal-faint-2: rgba(0,160,160,0.15);
+  --white:      #111827;
+  --muted:      #4a6280;
+  --muted2:     #7a98b0;
+  --nav-bg:     rgba(240,244,249,0.92);
 }
 
 /* ── Reset & Base ───────────────────────────────────────────── */
@@ -63,7 +83,7 @@ nav {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 2.5rem;
   height: 64px;
-  background: rgba(8,13,20,0.85);
+  background: var(--nav-bg);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
 }
@@ -606,7 +626,7 @@ section { padding: 6rem 2rem; }
 }
 
 .terminal {
-  background: #050b12;
+  background: var(--bg-terminal);
   border: 1px solid var(--border-mid);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -975,6 +995,70 @@ footer {
 .reveal.visible {
   opacity: 1;
   transform: none;
+}
+
+/* ── Theme toggle button ────────────────────────────────────── */
+.theme-toggle {
+  background: var(--teal-faint);
+  border: 1px solid var(--border-mid);
+  color: var(--muted);
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: background .2s, color .2s, border-color .2s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  background: var(--teal-glow);
+  color: var(--teal);
+  border-color: var(--teal);
+}
+.theme-toggle svg {
+  width: 16px; height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* show/hide sun vs moon icons */
+.icon-moon { display: block; }
+.icon-sun  { display: none; }
+[data-theme="light"] .icon-moon { display: none; }
+[data-theme="light"] .icon-sun  { display: block; }
+
+/* ── Light mode adjustments ─────────────────────────────────── */
+[data-theme="light"] body::before { opacity: .2; }
+
+[data-theme="light"] #hero::after {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+}
+
+[data-theme="light"] #heatmap-canvas { opacity: 0.25; }
+
+[data-theme="light"] .granularity {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .flow-box {
+  background: var(--bg-card2);
+  color: var(--white);
+}
+
+[data-theme="light"] .bar-track {
+  background: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .terminal-bar {
+  background: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .btn-ghost {
+  color: var(--white);
 }
 
 /* ── Responsive ─────────────────────────────────────────────── */
