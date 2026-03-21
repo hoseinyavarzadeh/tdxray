@@ -303,3 +303,22 @@ const counterObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0.5 });
 
 document.querySelectorAll('.stats-row').forEach(el => counterObserver.observe(el));
+
+/* ── Theme toggle ────────────────────────────────────────────── */
+(function () {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const saved = localStorage.getItem('tdxray-theme');
+  if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+
+  btn.addEventListener('click', () => {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    if (isLight) {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('tdxray-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('tdxray-theme', 'light');
+    }
+  });
+})();
