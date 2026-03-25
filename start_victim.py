@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+
+# This file is part of Canonical's TDX repository which includes tools
+# to setup and configure a confidential computing environment
+# based on Intel TDX technology.
+# See the LICENSE file in the repository for the license text.
+
+# Copyright 2025 Canonical Ltd.
+# SPDX-License-Identifier: GPL-3.0-only
+
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 3,
+# as published by the Free Software Foundation.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranties
+# of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+
+import argparse
+import os
+import platform
+import signal
+import subprocess
+import time
+
+file_path = os.path.realpath(os.path.dirname(__file__)) + "/guest-tools"
+
+pidfile='/tmp/tdx-demo-td-pid.pid'
+process_name='td'
+ssh_port=10022
+logfile='/tmp/tdx-guest-td.log'
+
+ubuntu_version=platform.freedesktop_os_release().get('VERSION_ID')
+
+if os.environ.get('TD_IMG'):
+    td_img=os.environ.get('TD_IMG')
+else:
+    td_img=f'{file_path}/image/tdx-guest-ubuntu-{ubuntu_version}-generic.qcow2'
+
+tdvf_params='/usr/share/ovmf/OVMF.fd'
+
+def do_print():
+    try:
+        with open(pidfile) as pid_file:
+            pid=int(pid_file.read())        
+            print(f'TD started by QEMU with PID: {pid}.')
+            print(f'To log in with the non-root user (default: tdx / password: 123456), as specified in setup-tdx-config, use:')
+            print(f'   $ ssh -p {ssh_port} <username>@localhost')
+            print('To log in as root (default password: 123456), use:')
+            print(f'   $ ssh -p {ssh_port} root@localhost')
+    except:
+        pass
+
+def do_clean():
+    print('Clean VM')
+    with open(pidfile) as pid_file:
+        pid=int(pid_file.read())
+        os.kill(pid, signal.SIGTERM)
+        # wait for process to exit
+        time.sleep(3)
+        os.remove(pidfile)
+
+def add_vsock(cmd):
+    cmd.extend(['-device', 'vhost-vsock-pci,guest-cid=3'])
+
+def prepare_gpus(gpus):
+    gpu_args = ','.join(gpus)
+    setup_cmd = f'sudo {file_path}/../gpu-cc/h100/setup-gpus.sh {gpu_args}'
+    print(setup_cmd)
+    subprocess.check_call(setup_cmd, shell=True, stderr=subprocess.STDOUT)
+
+def add_gpus(cmd, gpus):
+    if len(gpus) <= 0:
+        return
+    prepare_gpus(gpus)
+    index=0
+    for gpu in gpus:
+        gpu_cmd = ['-object', f'iommufd,id=iommufd{index}',
+                   '-device', f'pcie-root-port,port={index},chassis={index},id=pci.{index},bus=pcie.0',
+                   '-device', f'vfio-pci,host={gpu},bus=pci.{index},iommufd=iommufd{index}']
+        cmd.extend(gpu_cmd)
+        index = index + 1
+
+def pci_devices(vendor, product) -> list[str]:
+    output = subprocess.check_output(["lspci", "-d", f"{vendor}:{product}"], stderr=subprocess.STDOUT)
+    devices = []
+    for line in output.splitlines():
+        address = line.decode().strip().split(" ")[0]
+        devices.append(address)
+    return devices
+
+def setup_ppcie(cmd):
+    gpus = pci_devices("10de", "2335")
+    nvswitches = pci_devices("10de", "22a3")
+
+    if len(gpus) != 8:
+        print("PPCIe mode requires 8 GPUs")
+        exit(1)
+    if len(nvswitches) != 4:
+        print("PPCIe mode requires 4 NVSwitches")
+        exit(1)
+
+    # prepare_gpus(gpus)
+
+    cmd.extend([
+        "-object", "iommufd,id=iommufd0",
+
+        "-device", "pcie-root-port,port=16,chassis=1,id=pci.1,bus=pcie.0,multifunction=on,addr=0x5",
+        "-device", f"vfio-pci,host={gpus[0]},bus=pci.1,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb1,string=262144",
+
+        "-device", "pcie-root-port,port=17,chassis=2,id=pci.2,bus=pcie.0,addr=0x5.0x1",
+        "-device", f"vfio-pci,host={gpus[1]},bus=pci.2,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb2,string=262144",
+
+        "-device", "pcie-root-port,port=18,chassis=3,id=pci.3,bus=pcie.0,addr=0x5.0x2",
+        "-device", f"vfio-pci,host={gpus[2]},bus=pci.3,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb3,string=262144",
+
+        "-device", "pcie-root-port,port=19,chassis=4,id=pci.4,bus=pcie.0,addr=0x5.0x3",
+        "-device", f"vfio-pci,host={gpus[3]},bus=pci.4,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb4,string=262144",
+
+        "-device", "pcie-root-port,port=20,chassis=5,id=pci.5,bus=pcie.0,addr=0x5.0x4",
+        "-device", f"vfio-pci,host={gpus[4]},bus=pci.5,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb5,string=262144",
+
+        "-device", "pcie-root-port,port=21,chassis=6,id=pci.6,bus=pcie.0,addr=0x5.0x5",
+        "-device", f"vfio-pci,host={gpus[5]},bus=pci.6,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb6,string=262144",
+
+        "-device", "pcie-root-port,port=22,chassis=7,id=pci.7,bus=pcie.0,addr=0x5.0x6",
+        "-device", f"vfio-pci,host={gpus[6]},bus=pci.7,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb7,string=262144",
+
+        "-device", "pcie-root-port,port=23,chassis=8,id=pci.8,bus=pcie.0,addr=0x5.0x7",
+        "-device", f"vfio-pci,host={gpus[7]},bus=pci.8,addr=0x0,iommufd=iommufd0",
+        "-fw_cfg", "name=opt/ovmf/X-PciMmio64Mb8,string=262144",
+
+        "-device", "pcie-root-port,port=24,chassis=9,id=pci.9,bus=pcie.0,multifunction=on,addr=0x4",
+        "-device", f"vfio-pci,host=0000:{nvswitches[0]},bus=pci.9,addr=0x0,iommufd=iommufd0",
+        "-device", "pcie-root-port,port=25,chassis=10,id=pci.10,bus=pcie.0,addr=0x4.0x1",
+        "-device", f"vfio-pci,host=0000:{nvswitches[1]},bus=pci.10,addr=0x0,iommufd=iommufd0",
+        "-device", "pcie-root-port,port=26,chassis=11,id=pci.11,bus=pcie.0,addr=0x4.0x2",
+        "-device", f"vfio-pci,host=0000:{nvswitches[2]},bus=pci.11,addr=0x0,iommufd=iommufd0",
+        "-device", "pcie-root-port,port=27,chassis=12,id=pci.12,bus=pcie.0,addr=0x4.0x3",
+        "-device", f"vfio-pci,host=0000:{nvswitches[3]},bus=pci.12,addr=0x0,iommufd=iommufd0",
+    ])
+
+def do_run(img_path, gpus):
+    print('Run VM')
+    print(f'  Image: {img_path}')
+    if len(gpus):
+        print(f'  Passthrough GPUs: {gpus}')
+
+    cpu_args='host'
+    # to avoid warning on 25.04
+    # qemu-system-x86_64: warning: TDX doesn't support requested feature: CPUID.07H_01H:EDX.avx10 [bit 19]
+    if ubuntu_version != '24.04':
+        cpu_args='host,-avx10'
+
+    qemu_cmds = [
+        'taskset', '-c', '2',
+        'qemu-system-x86_64',
+        '-accel', 'kvm',
+        '-m', '8G',
+        '-smp', '1',
+        '-name', f'{process_name},process={process_name},debug-threads=on',
+        '-cpu', f'{cpu_args}',
+        '-object', '{"qom-type":"tdx-guest","id":"tdx","quote-generation-socket":{"type": "vsock", "cid":"2","port":"4050"}}',
+        '-object', 'memory-backend-ram,id=mem0,size=8G',
+        '-machine', 'q35,kernel_irqchip=split,confidential-guest-support=tdx,memory-backend=mem0',
+        '-bios', tdvf_params,
+        '-nographic',
+        '-nodefaults',
+        '-vga', 'none',
+        '-device', 'virtio-net-pci,netdev=nic0_td',
+        '-netdev', f'user,id=nic0_td,hostfwd=tcp::{ssh_port}-:22,hostfwd=tcp::12123-:12123',
+        '-drive', f'file={img_path},if=none,id=virtio-disk0',
+        '-device', 'virtio-blk-pci,drive=virtio-disk0',
+        '-pidfile', pidfile
+    ]
+
+    if args.foreground:
+        qemu_cmds.extend(['-serial', 'stdio'])
+    else:
+        qemu_cmds.extend(['-daemonize'])
+
+    add_vsock(qemu_cmds)
+
+    if args.gpus and len(args.gpus) == 8:
+        setup_ppcie(qemu_cmds)
+    else:
+        add_gpus(qemu_cmds, gpus)
+
+    subprocess.run(qemu_cmds, stderr=subprocess.STDOUT)
+    do_print()
+
+def run_td(args):
+    global td_img
+    try:
+        do_clean()
+    except:
+        pass
+    if args.clean:
+       return
+    if args.image:
+        td_img=args.image
+    do_run(td_img, args.gpus.split(',') if args.gpus else [])
+
+if __name__ == '__main__':
+   parser = argparse.ArgumentParser()
+   parser.add_argument("--image", type=str, help="Guest image")
+   parser.add_argument("--gpus", type=str, help="GPUs to pass-through")
+   parser.add_argument("--clean", action='store_true', help="Clean the current VM")
+   parser.add_argument("--foreground", action='store_true', help="Run in foreground")
+   args = parser.parse_args()
+   run_td(args)
