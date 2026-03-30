@@ -1,4 +1,7 @@
-# TDXRay Artifact
+# TDXRay
+
+This repository contains demos for the paper **"TDXRay: Microarchitectural Side-Channel Analysis of Intel TDX for Real-World Workloads"**.
+For a detailed explanation of the technical details, please refer to our website at <https://tdxray.cpusec.org>.
 
 ## Contents
 
@@ -129,6 +132,7 @@ In 'off' mode, it should commit.
 By default, the attack uses TSX-Probe and runs 10 times, with 1000 victim encryptions per run.
 If you want to use a different configuration, adjust the parameters in `config.h`, and rebuild the attack.
 Note that Load+Probe in the regular non-PMC variant is very sensitive to system noise, and that the upper and lower cache hit thresholds may need to be adjusted to achieve optimal performance.
+
 ---
 
 ## Stealing LLM Prompts
