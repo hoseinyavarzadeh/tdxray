@@ -1,7 +1,20 @@
-# TDXRay
+
+
+<p align="center">
+	<img src="tdxray.png" alt="TDXRay logo" width="300" />
+</p>
+
+<p align="center">
+	<a href="https://tdxray.cpusec.org/assets/TDXRay_SP26.pdf"><strong>Paper</strong></a>
+	&nbsp;|&nbsp;
+	<a href="https://tdxray.cpusec.org"><strong>Website</strong></a>
+	&nbsp;|&nbsp;
+	<a href="https://github.com/hoseinyavarzadeh/tdxray"><strong>Code</strong></a>
+</p>
 
 This repository contains demos for the paper **"TDXRay: Microarchitectural Side-Channel Analysis of Intel TDX for Real-World Workloads"**.
-For a detailed explanation of the technical details, please refer to our website at <https://tdxray.cpusec.org>.
+
+For a detailed technical explanation, visit <https://tdxray.cpusec.org>.
 
 ## Contents
 
