@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-	<a href="https://tdxray.cpusec.org/assets/TDXRay_SP26.pdf"><strong>Paper</strong></a>
+	<a href="https://tdxray.cpusec.org/assets/tdxray_sp26.pdf"><strong>Paper</strong></a>
 	&nbsp;|&nbsp;
 	<a href="https://tdxray.cpusec.org"><strong>Website</strong></a>
 	&nbsp;|&nbsp;
